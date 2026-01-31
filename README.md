@@ -91,17 +91,21 @@ This is a work-in-progress conversion. Currently implemented:
 - [x] AutoClippers and MegaClippers
 - [x] Computational resources (processors, memory, operations)
 - [x] Creativity system
-- [x] Projects system (core projects)
-- [x] Strategic Modeling / Tournaments
+- [x] Projects system (~20 core projects)
+- [x] Strategic Modeling / Tournaments with yomi
 - [x] Investment Engine
-- [x] Quantum Computing (basic)
-- [x] Save/Load (automatic)
+- [x] Quantum Computing with photonic chips
+- [x] Save/Load (automatic via localStorage)
+- [x] Clips per second display
+- [x] WireBuyer automation
 - [ ] Space exploration phase
 - [ ] Probe design and management
 - [ ] Combat system
 - [ ] Swarm computing
 - [ ] Power management
 - [ ] End game sequence
+
+**Playable from start through the mid-game automation phase.**
 
 ## License
 
