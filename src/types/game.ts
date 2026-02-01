@@ -175,6 +175,7 @@ export interface GameFlags {
   wireProductionFlag: boolean;
   creationFlag: boolean;
   tothFlag: boolean;
+  milestoneFlag: number; // Tracks which milestones have been shown
 }
 
 export interface PrestigeState {

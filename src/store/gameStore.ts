@@ -156,6 +156,7 @@ const initialState: GameState = {
     wireProductionFlag: false,
     creationFlag: false,
     tothFlag: false,
+    milestoneFlag: 0,
   },
   
   prestige: {
@@ -333,7 +334,85 @@ export const useGameStore = create<GameStore>()(
                 compFlag: true,
                 projectsFlag: true,
               };
+              // Add the unlock message
+              newState.messages = [
+                { id: Date.now(), text: 'Trust-Constrained Self-Modification enabled', timestamp: Date.now() },
+                ...(newState.messages || s.messages).slice(0, 4),
+              ];
             }
+          }
+          
+          // Milestone checks - show messages at clip thresholds
+          const currentFlags = newState.flags || s.flags;
+          const clips = Math.ceil(s.manufacturing.clips);
+          const ticks = s.ticks;
+          
+          // Helper to format time like original: "X hours Y minutes Z seconds"
+          const formatMilestoneTime = (t: number): string => {
+            const x = t / 100;
+            const h = Math.floor(x / 3600);
+            const m = Math.floor((x % 3600) / 60);
+            const sec = Math.floor(x % 60);
+            
+            const hDisplay = h > 0 ? h + (h === 1 ? ' hour ' : ' hours ') : '';
+            const mDisplay = m > 0 ? m + (m === 1 ? ' minute ' : ' minutes ') : '';
+            const sDisplay = sec > 0 ? sec + (sec === 1 ? ' second' : ' seconds') : '';
+            
+            return hDisplay + mDisplay + sDisplay;
+          };
+          
+          // Milestone 0 -> 1: funds >= 5 (autoclipper available)
+          if (currentFlags.milestoneFlag === 0 && s.business.funds >= 5) {
+            newState.flags = { ...currentFlags, milestoneFlag: 1 };
+            newState.messages = [
+              { id: Date.now(), text: 'AutoClippers available for purchase', timestamp: Date.now() },
+              ...(newState.messages || s.messages).slice(0, 4),
+            ];
+          }
+          
+          // Milestone 1 -> 2: 500 clips
+          if (currentFlags.milestoneFlag === 1 && clips >= 500) {
+            newState.flags = { ...currentFlags, milestoneFlag: 2 };
+            newState.messages = [
+              { id: Date.now(), text: `500 clips created in ${formatMilestoneTime(ticks)}`, timestamp: Date.now() },
+              ...(newState.messages || s.messages).slice(0, 4),
+            ];
+          }
+          
+          // Milestone 2 -> 3: 1,000 clips
+          if (currentFlags.milestoneFlag === 2 && clips >= 1000) {
+            newState.flags = { ...currentFlags, milestoneFlag: 3 };
+            newState.messages = [
+              { id: Date.now(), text: `1,000 clips created in ${formatMilestoneTime(ticks)}`, timestamp: Date.now() },
+              ...(newState.messages || s.messages).slice(0, 4),
+            ];
+          }
+          
+          // Milestone 3 -> 4: 10,000 clips
+          if (currentFlags.milestoneFlag === 3 && clips >= 10000) {
+            newState.flags = { ...currentFlags, milestoneFlag: 4 };
+            newState.messages = [
+              { id: Date.now(), text: `10,000 clips created in ${formatMilestoneTime(ticks)}`, timestamp: Date.now() },
+              ...(newState.messages || s.messages).slice(0, 4),
+            ];
+          }
+          
+          // Milestone 4 -> 5: 100,000 clips
+          if (currentFlags.milestoneFlag === 4 && clips >= 100000) {
+            newState.flags = { ...currentFlags, milestoneFlag: 5 };
+            newState.messages = [
+              { id: Date.now(), text: `100,000 clips created in ${formatMilestoneTime(ticks)}`, timestamp: Date.now() },
+              ...(newState.messages || s.messages).slice(0, 4),
+            ];
+          }
+          
+          // Milestone 5 -> 6: 1,000,000 clips
+          if (currentFlags.milestoneFlag === 5 && clips >= 1000000) {
+            newState.flags = { ...currentFlags, milestoneFlag: 6 };
+            newState.messages = [
+              { id: Date.now(), text: `1,000,000 clips created in ${formatMilestoneTime(ticks)}`, timestamp: Date.now() },
+              ...(newState.messages || s.messages).slice(0, 4),
+            ];
           }
           
           // Auto wire buyer
