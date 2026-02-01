@@ -33,7 +33,8 @@ export function Business() {
       <div className="price-controls">
         <button onClick={lowerPrice} disabled={margin <= 0.01}>lower</button>
         <button onClick={raisePrice}>raise</button>
-        <span> Price per Clip: $ {margin < 1 ? margin.toFixed(2).substring(1) : margin.toFixed(2)}</span>
+        {/* Original uses margin.toFixed(2) which shows "0.25" for values < 1 */}
+        <span> Price per Clip: $ {margin.toFixed(2)}</span>
       </div>
       
       <p>Public Demand: <span className="value">{Math.round(demand * 10)}%</span></p>

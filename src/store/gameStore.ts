@@ -510,94 +510,8 @@ export const useGameStore = create<GameStore>()(
             };
           }
           
-          // Sell clips (human phase, every 10 ticks = 100ms matching original tick rate)
-          // Original: if (Math.random() < (demand/100)) { sellClips(Math.floor(.7 * Math.pow(demand, 1.15))); }
-          // Note: Original tick rate was 100ms, ours is 10ms, so we do this every 10 ticks
-          if (s.flags.humanFlag && s.business.unsoldClips > 0 && s.ticks % 10 === 0) {
-            const sellChance = s.business.demand / 100;
-            if (Math.random() < sellChance) {
-              // Match original formula exactly
-              const potentialSell = Math.floor(0.7 * Math.pow(s.business.demand, 1.15));
-              const currentBiz = newState.business || s.business;
-              const unsoldClips = currentBiz.unsoldClips;
-              
-              if (potentialSell > unsoldClips) {
-                // Original: transaction = (Math.floor((unsoldClips * margin)*1000))/1000;
-                const transaction = Math.floor(unsoldClips * s.business.margin * 1000) / 1000;
-                newState.business = {
-                  ...currentBiz,
-                  unsoldClips: 0,
-                  clipsSold: currentBiz.clipsSold + unsoldClips,
-                  funds: Math.floor((currentBiz.funds + transaction) * 100) / 100,
-                  income: currentBiz.income + transaction,
-                };
-              } else if (potentialSell > 0) {
-                // Original: transaction = (Math.floor((number * margin)*1000))/1000;
-                const transaction = Math.floor(potentialSell * s.business.margin * 1000) / 1000;
-                newState.business = {
-                  ...currentBiz,
-                  unsoldClips: unsoldClips - potentialSell,
-                  clipsSold: currentBiz.clipsSold + potentialSell,
-                  funds: Math.floor((currentBiz.funds + transaction) * 100) / 100,
-                  income: currentBiz.income + transaction,
-                };
-              }
-            }
-          }
-          
-          // Calculate avgRev and avgSales every 100 ticks (once per second)
-          // Original: secTimer++; if (secTimer >= 10) { calculateRev(); secTimer = 0; }
-          // Note: Original tick rate was 100ms with secTimer firing at 10 = 1000ms
-          // Our tick rate is 10ms, so we use ticks % 100 for 1000ms
-          if (s.flags.humanFlag && s.ticks % 100 === 0) {
-            const currentBiz = newState.business || s.business;
-            
-            // Original: incomeThen = incomeNow; incomeNow = income;
-            // Original: incomeLastSecond = Math.round((incomeNow - incomeThen)*100)/100;
-            const incomeThen = currentBiz.lastIncomeReading;
-            const incomeNow = currentBiz.income;
-            const incomeLastSecond = Math.round((incomeNow - incomeThen) * 100) / 100;
-            
-            // Push delta to tracker, keep last 10 entries
-            // Original: incomeTracker.push(incomeLastSecond);
-            const newTracker = [...currentBiz.incomeTracker, incomeLastSecond];
-            if (newTracker.length > 10) {
-              newTracker.splice(0, 1);
-            }
-            
-            // Calculate true avg revenue from tracker (average of deltas)
-            // Original: for (i=0; i<incomeTracker.length; i++) { sum = Math.round((sum + incomeTracker[i])*100)/100; }
-            // Original: trueAvgRev = sum/incomeTracker.length;
-            let sum = 0;
-            for (let i = 0; i < newTracker.length; i++) {
-              sum = Math.round((sum + newTracker[i]) * 100) / 100;
-            }
-            const trueAvgRev = sum / newTracker.length;
-            
-            // Original formula for avgSales and avgRev
-            let chanceOfPurchase = currentBiz.demand / 100;
-            if (chanceOfPurchase > 1) chanceOfPurchase = 1;
-            if (currentBiz.unsoldClips < 1) chanceOfPurchase = 0;
-            
-            // Original: avgSales = chanceOfPurchase * (.7*Math.pow(demand,1.15))*10;
-            // Original: avgRev = chanceOfPurchase * (.7*Math.pow(demand,1.15))*margin*10;
-            let avgSales = chanceOfPurchase * (0.7 * Math.pow(currentBiz.demand, 1.15)) * 10;
-            let avgRev = chanceOfPurchase * (0.7 * Math.pow(currentBiz.demand, 1.15)) * currentBiz.margin * 10;
-            
-            // Original: if (demand>unsoldClips) { avgRev = trueAvgRev; avgSales = avgRev/margin; }
-            if (currentBiz.demand > currentBiz.unsoldClips) {
-              avgRev = trueAvgRev;
-              avgSales = currentBiz.margin > 0 ? avgRev / currentBiz.margin : 0;
-            }
-            
-            newState.business = {
-              ...currentBiz,
-              incomeTracker: newTracker,
-              lastIncomeReading: incomeNow,
-              avgRev,
-              avgSales,
-            };
-          }
+          // NOTE: Sales and revenue calculation moved to slowTick (100ms loop)
+          // to match original game's timing
           
           // Calculate demand (human phase)
           // Original: marketing = (Math.pow(1.1,(marketingLvl-1)));
@@ -614,36 +528,8 @@ export const useGameStore = create<GameStore>()(
             };
           }
           
-          // Wire price timer and base price decay (original main.js lines 25-36)
-          // Timer increments each tick, triggers decay if no purchases for 250+ ticks
-          const currentTimer = (newState.manufacturing?.wirePriceTimer ?? s.manufacturing.wirePriceTimer) + 1;
-          let currentBasePrice = newState.manufacturing?.wireBasePrice ?? s.manufacturing.wireBasePrice;
-          let newTimer = currentTimer;
-          
-          if (currentTimer > 250 && currentBasePrice > 15) {
-            currentBasePrice = currentBasePrice - (currentBasePrice / 1000);
-            newTimer = 0;
-          }
-          
-          // Wire price fluctuation (1.5% chance each tick)
-          // Uses dedicated counter that only increments when price updates
-          if (Math.random() < 0.015) {
-            const newPriceCounter = s.manufacturing.wirePriceCounter + 1;
-            const wireAdjust = 6 * Math.sin(newPriceCounter);
-            newState.manufacturing = {
-              ...newState.manufacturing,
-              wireCost: Math.ceil(currentBasePrice + wireAdjust),
-              wireBasePrice: currentBasePrice,
-              wirePriceCounter: newPriceCounter,
-              wirePriceTimer: newTimer,
-            };
-          } else {
-            newState.manufacturing = {
-              ...newState.manufacturing,
-              wireBasePrice: currentBasePrice,
-              wirePriceTimer: newTimer,
-            };
-          }
+          // NOTE: Wire price fluctuation moved to slowTick (100ms loop)
+          // to match original game's timing (adjustWirePrice called in slow loop)
           
           // Quantum computing animation
           if (s.computing.qFlag) {
@@ -786,11 +672,6 @@ export const useGameStore = create<GameStore>()(
       },
       
       reset: () => set({ ...initialState, messages: [{ id: messageId++, text: 'Welcome to Universal Paperclips', timestamp: Date.now() }] }),
-      
-      // Slow tick - runs less frequently than main tick (for expensive calculations)
-      slowTick: () => {
-        // Placeholder for future use
-      },
       
       // Manufacturing
       makeClip: (amount = 1) => {
