@@ -2,8 +2,104 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { 
   GameState,
-  QChip 
+  QChip,
+  Strategy,
+  PayoffGrid
 } from '../types/game';
+
+// Strategy helper functions
+const findBiggestPayoff = (payoffGrid: PayoffGrid): number => {
+  const values = [payoffGrid.valueAA, payoffGrid.valueAB, payoffGrid.valueBA, payoffGrid.valueBB];
+  const max = Math.max(...values);
+  return values.indexOf(max) + 1;
+};
+
+const whatBeatsLast = (currentPos: number, hMovePrev?: number, vMovePrev?: number): number => {
+  const lastMove = currentPos === 1 ? vMovePrev : hMovePrev;
+  return lastMove === 1 ? 2 : 1;
+};
+
+// Tournament Strategies
+const stratRandom: Strategy = {
+  name: "RANDOM",
+  active: 1,
+  currentScore: 0,
+  currentPos: 1,
+  pickMove: () => {
+    const r = Math.random();
+    return r < 0.5 ? 1 : 2;
+  }
+};
+
+const stratA100: Strategy = {
+  name: "A100",
+  active: 0,
+  currentScore: 0,
+  currentPos: 1,
+  pickMove: () => 1
+};
+
+const stratB100: Strategy = {
+  name: "B100",
+  active: 0,
+  currentScore: 0,
+  currentPos: 1,
+  pickMove: () => 2
+};
+
+const stratGreedy: Strategy = {
+  name: "GREEDY",
+  active: 0,
+  currentScore: 0,
+  currentPos: 1,
+  pickMove: (payoffGrid = { valueAA: 5, valueAB: 5, valueBA: 5, valueBB: 5 }) => {
+    const x = findBiggestPayoff(payoffGrid);
+    return x < 3 ? 1 : 2;
+  }
+};
+
+const stratGenerous: Strategy = {
+  name: "GENEROUS",
+  active: 0,
+  currentScore: 0,
+  currentPos: 1,
+  pickMove: (payoffGrid = { valueAA: 5, valueAB: 5, valueBA: 5, valueBB: 5 }) => {
+    const x = findBiggestPayoff(payoffGrid);
+    return (x === 1 || x === 3) ? 1 : 2;
+  }
+};
+
+const stratTitForTat: Strategy = {
+  name: "TIT FOR TAT",
+  active: 0,
+  currentScore: 0,
+  currentPos: 1,
+  pickMove: (payoffGrid, hMovePrev, vMovePrev) => {
+    if (stratTitForTat.currentPos === 1) {
+      return vMovePrev || 1;
+    } else {
+      return hMovePrev || 1;
+    }
+  }
+};
+
+const stratBeatLast: Strategy = {
+  name: "BEAT LAST",
+  active: 0,
+  currentScore: 0,
+  currentPos: 1,
+  pickMove: (payoffGrid, hMovePrev, vMovePrev) => {
+    return whatBeatsLast(stratBeatLast.currentPos, hMovePrev, vMovePrev);
+  }
+};
+
+// All strategies array
+const allStrats = [stratRandom, stratA100, stratB100, stratGreedy, stratGenerous, stratTitForTat, stratBeatLast];
+
+// Active strategies (initially just RANDOM)
+const createStrats = (): Strategy[] => {
+  return [{ ...stratRandom }];
+};
 
 // Initial Q-Chips setup
 const createQChips = (): QChip[] => {
@@ -85,6 +181,31 @@ const initialState: GameState = {
     autoTourneyFlag: false,
     autoTourneyStatus: true,
     resultsFlag: false,
+    currentRound: 0,
+    rounds: 0,
+    payoffGrid: {
+      valueAA: 0,
+      valueAB: 0,
+      valueBA: 0,
+      valueBB: 0,
+    },
+    hMove: 0,
+    vMove: 0,
+    hMovePrev: 0,
+    vMovePrev: 0,
+    rCounter: 0,
+    stratCounter: 0,
+    h: 0,
+    v: 0,
+    hStrat: null as Strategy | null,
+    vStrat: null as Strategy | null,
+    strats: createStrats(),
+    tourneyResults: [] as Strategy[],
+    winnerPtr: 0,
+    high: 0,
+    placeScore: 0,
+    showScore: 0,
+    yomiBoost: 1,
   },
   
   investment: {
@@ -209,6 +330,9 @@ interface GameActions {
   runTourney: () => void;
   newTourney: () => void;
   toggleAutoTourney: () => void;
+  runTourneyRound: (roundNum: number) => any;
+  pickWinner: () => any;
+  addStrategy: (strategyName: string) => void;
   
   // Investment
   investDeposit: () => void;
@@ -942,28 +1066,63 @@ export const useGameStore = create<GameStore>()(
       // Strategic
       runTourney: () => {
         set((s) => {
-          if (s.strategic.tourneyInProg || s.computing.operations < s.strategic.tourneyCost) return s;
+          if (!s.strategic.tourneyInProg) return s;
           
-          // Simplified tourney - generate yomi based on strategy
-          const yomiGain = Math.floor(Math.random() * 50) + 10;
+          const strategic = s.strategic;
           
-          return {
-            computing: {
-              ...s.computing,
-              operations: s.computing.operations - Math.floor(s.strategic.tourneyCost / 10),
-            },
-            strategic: {
-              ...s.strategic,
-              yomi: s.strategic.yomi + yomiGain,
-              resultsFlag: true,
-            },
-          };
+          // Tournament progression
+          if (strategic.currentRound < strategic.rounds) {
+            // Run a round
+            const newState = get().runTourneyRound(strategic.currentRound);
+            return {
+              strategic: {
+                ...strategic,
+                currentRound: strategic.currentRound + 1,
+                ...newState,
+              },
+            };
+          } else {
+            // Tournament complete - pick winner and calculate results
+            const results = get().pickWinner();
+            const pickedStrategy = strategic.strats[strategic.stratPicked] || strategic.strats[0];
+            const yomiGain = pickedStrategy.currentScore * strategic.yomiBoost;
+            
+            return {
+              strategic: {
+                ...strategic,
+                tourneyInProg: false,
+                resultsFlag: true,
+                tourneyResults: results.results,
+                winnerPtr: results.winnerPtr,
+                high: results.high,
+                placeScore: results.placeScore,
+                showScore: results.showScore,
+                yomi: strategic.yomi + yomiGain,
+              },
+            };
+          }
         });
       },
       
       newTourney: () => {
         set((s) => {
           if (s.computing.operations < s.strategic.tourneyCost) return s;
+          
+          // Generate new payoff grid
+          const payoffGrid = {
+            valueAA: Math.ceil(Math.random() * 10),
+            valueAB: Math.ceil(Math.random() * 10),
+            valueBA: Math.ceil(Math.random() * 10),
+            valueBB: Math.ceil(Math.random() * 10),
+          };
+          
+          // Reset all strategy scores
+          const strats = s.strategic.strats.map(strat => ({
+            ...strat,
+            currentScore: 0,
+          }));
+          
+          const rounds = strats.length * strats.length;
           
           return {
             computing: {
@@ -972,8 +1131,165 @@ export const useGameStore = create<GameStore>()(
             },
             strategic: {
               ...s.strategic,
-              tourneyInProg: false,
+              tourneyInProg: true,
               resultsFlag: false,
+              currentRound: 0,
+              rounds,
+              payoffGrid,
+              strats,
+              stratCounter: 0,
+              h: 0,
+              v: 0,
+              hMove: 0,
+              vMove: 0,
+              hMovePrev: 0,
+              vMovePrev: 0,
+              rCounter: 0,
+              high: 0,
+              tourneyResults: [],
+            },
+          };
+        });
+      },
+      
+      runTourneyRound: (roundNum: number) => {
+        const s = get();
+        const strategic = s.strategic;
+        const strats = strategic.strats;
+        
+        // Pick strategies for this round (original pickStrats logic)
+        let h: number, v: number;
+        if (roundNum < strats.length) {
+          h = 0;
+          v = roundNum;
+        } else {
+          const newStratCounter = (strategic.stratCounter + 1) >= strats.length 
+            ? (strategic.stratCounter + 1) - strats.length 
+            : strategic.stratCounter + 1;
+          h = Math.floor(roundNum / strats.length);
+          v = newStratCounter;
+        }
+        
+        const hStrat = { ...strats[h], currentPos: 1 };
+        const vStrat = { ...strats[v], currentPos: 2 };
+        
+        // Update strategy positions for this round
+        stratTitForTat.currentPos = hStrat === strats.find(s => s.name === "TIT FOR TAT") ? 1 : 2;
+        stratBeatLast.currentPos = hStrat === strats.find(s => s.name === "BEAT LAST") ? 1 : 2;
+        
+        // Run 10 sub-rounds
+        let newHStrat = hStrat;
+        let newVStrat = vStrat;
+        let hMovePrev = strategic.hMovePrev;
+        let vMovePrev = strategic.vMovePrev;
+        
+        for (let i = 0; i < 10; i++) {
+          const hMove = newHStrat.pickMove(strategic.payoffGrid, hMovePrev, vMovePrev);
+          const vMove = newVStrat.pickMove(strategic.payoffGrid, hMovePrev, vMovePrev);
+          
+          // Calculate payoffs
+          if (hMove === 1 && vMove === 1) {
+            newHStrat.currentScore += strategic.payoffGrid.valueAA;
+            newVStrat.currentScore += strategic.payoffGrid.valueAA;
+          } else if (hMove === 1 && vMove === 2) {
+            newHStrat.currentScore += strategic.payoffGrid.valueAB;
+            newVStrat.currentScore += strategic.payoffGrid.valueBA;
+          } else if (hMove === 2 && vMove === 1) {
+            newHStrat.currentScore += strategic.payoffGrid.valueBA;
+            newVStrat.currentScore += strategic.payoffGrid.valueAB;
+          } else if (hMove === 2 && vMove === 2) {
+            newHStrat.currentScore += strategic.payoffGrid.valueBB;
+            newVStrat.currentScore += strategic.payoffGrid.valueBB;
+          }
+          
+          hMovePrev = hMove;
+          vMovePrev = vMove;
+        }
+        
+        // Update strats with new scores
+        const newStrats = [...strats];
+        newStrats[h] = newHStrat;
+        newStrats[v] = newVStrat;
+        
+        return {
+          strats: newStrats,
+          stratCounter: h === 0 ? strategic.stratCounter : (strategic.stratCounter + 1) >= strats.length 
+            ? (strategic.stratCounter + 1) - strats.length 
+            : strategic.stratCounter + 1,
+          h,
+          v,
+          hStrat: newHStrat,
+          vStrat: newVStrat,
+          hMovePrev,
+          vMovePrev,
+        };
+      },
+      
+      pickWinner: () => {
+        const s = get();
+        const strats = s.strategic.strats;
+        
+        // Create sorted results (original pickWinner logic)
+        const results = [...strats].sort((a, b) => b.currentScore - a.currentScore);
+        
+        let winnerPtr = 0;
+        let high = 0;
+        
+        // Find the highest scoring strategy
+        for (let i = 0; i < strats.length; i++) {
+          if (strats[i].currentScore > high) {
+            winnerPtr = i;
+            high = strats[i].currentScore;
+          }
+        }
+        
+        // Calculate place and show scores (2nd and 3rd place scores)
+        let placeScore = 0;
+        let showScore = 0;
+        
+        for (let i = 1; i < results.length; i++) {
+          if (results[i].currentScore < results[i - 1].currentScore) {
+            placeScore = results[i].currentScore;
+            break;
+          }
+        }
+        
+        for (let i = 1; i < results.length; i++) {
+          if (results[i].currentScore < placeScore) {
+            showScore = results[i].currentScore;
+            break;
+          }
+        }
+        
+        return {
+          results,
+          winnerPtr,
+          high,
+          placeScore,
+          showScore,
+        };
+      },
+      
+      addStrategy: (strategyName: string) => {
+        set((s) => {
+          const strategy = allStrats.find(strat => strat.name === strategyName);
+          if (!strategy) return s;
+          
+          // Check if strategy already exists
+          const exists = s.strategic.strats.some(strat => strat.name === strategyName);
+          if (exists) return s;
+          
+          // Add the strategy
+          const newStrategy = {
+            ...strategy,
+            active: 1,
+            currentScore: 0,
+          };
+          
+          return {
+            strategic: {
+              ...s.strategic,
+              strats: [...s.strategic.strats, newStrategy],
             },
           };
         });

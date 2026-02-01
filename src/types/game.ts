@@ -76,6 +76,21 @@ export interface QChip {
   active: boolean;
 }
 
+export interface Strategy {
+  name: string;
+  active: number;
+  currentScore: number;
+  currentPos: number;
+  pickMove: (payoffGrid?: PayoffGrid, hMovePrev?: number, vMovePrev?: number) => number;
+}
+
+export interface PayoffGrid {
+  valueAA: number;
+  valueAB: number;
+  valueBA: number;
+  valueBB: number;
+}
+
 export interface StrategicState {
   yomi: number;
   stratPicked: number;
@@ -84,6 +99,26 @@ export interface StrategicState {
   autoTourneyFlag: boolean;
   autoTourneyStatus: boolean;
   resultsFlag: boolean;
+  currentRound: number;
+  rounds: number;
+  payoffGrid: PayoffGrid;
+  hMove: number;
+  vMove: number;
+  hMovePrev: number;
+  vMovePrev: number;
+  rCounter: number;
+  stratCounter: number;
+  h: number;
+  v: number;
+  hStrat: Strategy | null;
+  vStrat: Strategy | null;
+  strats: Strategy[];
+  tourneyResults: Strategy[];
+  winnerPtr: number;
+  high: number;
+  placeScore: number;
+  showScore: number;
+  yomiBoost: number;
 }
 
 export interface InvestmentState {
