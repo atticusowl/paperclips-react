@@ -220,6 +220,12 @@ export interface GameFlags {
   revPerSecFlag: boolean;
   investmentEngineFlag: boolean;
   strategyEngineFlag: boolean;
+  stratA100Flag: boolean;
+  stratB100Flag: boolean;
+  stratGreedyFlag: boolean;
+  stratGenerousFlag: boolean;
+  stratTitForTatFlag: boolean;
+  stratBeatLastFlag: boolean;
   wireProductionFlag: boolean;
   creationFlag: boolean;
   tothFlag: boolean;

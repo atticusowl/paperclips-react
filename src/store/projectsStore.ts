@@ -50,6 +50,31 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         uses: 1,
       },
       {
+        id: 'project2',
+        title: 'Beg for More Wire',
+        priceTag: '(1 Trust)',
+        description: 'Add 500 wire as emergency supply',
+        trigger: () => {
+          const store = useGameStore.getState();
+          return (
+            store.business.funds < store.manufacturing.wireCost &&
+            store.manufacturing.wire < 1 &&
+            store.business.unsoldClips < 1
+          );
+        },
+        cost: () => useGameStore.getState().computing.trust >= 1,
+        effect: () => {
+          const store = useGameStore.getState();
+          useGameStore.setState({
+            computing: { ...store.computing, trust: store.computing.trust - 1 },
+            manufacturing: { ...store.manufacturing, wire: store.manufacturing.wire + 500 },
+          });
+          store.addMessage('Emergency wire supply secured (+500 wire)');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
         id: 'project4',
         title: 'Even Better AutoClippers',
         priceTag: '(2,500 ops)',
@@ -143,6 +168,63 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             manufacturing: { ...store.manufacturing, wireSupply: newSupply },
           });
           store.addMessage(`Wire extrusion optimized, ${newSupply.toLocaleString()} supply from every spool`);
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project9',
+        title: 'Microlattice Shapecasting',
+        priceTag: '(7,500 ops)',
+        description: '100% more wire supply from every spool',
+        trigger: () => useGameStore.getState().manufacturing.wireSupply >= 2600,
+        cost: () => useGameStore.getState().computing.operations >= 7500,
+        effect: () => {
+          const store = useGameStore.getState();
+          const newSupply = Math.floor(store.manufacturing.wireSupply * 2);
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 7500 },
+            manufacturing: { ...store.manufacturing, wireSupply: newSupply },
+          });
+          store.addMessage(`Microlattice Shapecasting complete, ${newSupply.toLocaleString()} supply from every spool`);
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project10',
+        title: 'Spectral Froth Annealment',
+        priceTag: '(12,000 ops)',
+        description: 'Doubles wire supply from every spool',
+        trigger: () => useGameStore.getState().manufacturing.wireSupply >= 5000,
+        cost: () => useGameStore.getState().computing.operations >= 12000,
+        effect: () => {
+          const store = useGameStore.getState();
+          const newSupply = Math.floor(store.manufacturing.wireSupply * 2);
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 12000 },
+            manufacturing: { ...store.manufacturing, wireSupply: newSupply },
+          });
+          store.addMessage(`Spectral Froth Annealment complete, ${newSupply.toLocaleString()} supply from every spool`);
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project10b',
+        title: 'Quantum Foam Annealment',
+        priceTag: '(15,000 ops)',
+        description: '10x more wire supply from every spool',
+        trigger: () => useGameStore.getState().manufacturing.wireCost >= 125,
+        cost: () => useGameStore.getState().computing.operations >= 15000,
+        effect: () => {
+          const store = useGameStore.getState();
+          const newSupply = Math.floor(store.manufacturing.wireSupply * 10);
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 15000 },
+            manufacturing: { ...store.manufacturing, wireSupply: newSupply },
+          });
+          store.addMessage(`Quantum Foam Annealment complete, ${newSupply.toLocaleString()} supply from every spool`);
         },
         flag: false,
         uses: 1,
@@ -293,6 +375,60 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         flag: false,
         uses: 1,
       },
+      {
+        id: 'project23',
+        title: 'Improved MegaClippers',
+        priceTag: '(14,000 ops)',
+        description: 'Increases MegaClipper performance 25%',
+        trigger: () => useGameStore.getState().manufacturing.megaClipperLevel >= 1,
+        cost: () => useGameStore.getState().computing.operations >= 14000,
+        effect: () => {
+          const store = useGameStore.getState();
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 14000 },
+            manufacturing: { ...store.manufacturing, megaClipperBoost: store.manufacturing.megaClipperBoost + 0.25 },
+          });
+          store.addMessage('MegaClipper performance boosted by 25%');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project24',
+        title: 'Even Better MegaClippers',
+        priceTag: '(17,000 ops)',
+        description: 'Increases MegaClipper performance by an additional 50%',
+        trigger: () => get().completedProjects.includes('project23'),
+        cost: () => useGameStore.getState().computing.operations >= 17000,
+        effect: () => {
+          const store = useGameStore.getState();
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 17000 },
+            manufacturing: { ...store.manufacturing, megaClipperBoost: store.manufacturing.megaClipperBoost + 0.5 },
+          });
+          store.addMessage('MegaClipper performance boosted by another 50%');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project25',
+        title: 'Optimized MegaClippers',
+        priceTag: '(19,500 ops)',
+        description: 'Increases MegaClipper performance by an additional 75%',
+        trigger: () => get().completedProjects.includes('project24'),
+        cost: () => useGameStore.getState().computing.operations >= 19500,
+        effect: () => {
+          const store = useGameStore.getState();
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 19500 },
+            manufacturing: { ...store.manufacturing, megaClipperBoost: store.manufacturing.megaClipperBoost + 0.75 },
+          });
+          store.addMessage('MegaClipper performance boosted by another 75%');
+        },
+        flag: false,
+        uses: 1,
+      },
       
       // Wire Buyer
       {
@@ -370,6 +506,122 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             flags: { ...store.flags, strategyEngineFlag: true },
           });
           store.addMessage('Strategic Modeling unlocked');
+        },
+        flag: false,
+        uses: 1,
+      },
+      
+      // Strategy unlocks
+      {
+        id: 'project60',
+        title: 'New Strategy: A100',
+        priceTag: '(15,000 ops)',
+        description: 'Unlocks the A100 strategy for tournaments',
+        trigger: () => useGameStore.getState().flags.strategyEngineFlag,
+        cost: () => useGameStore.getState().computing.operations >= 15000,
+        effect: () => {
+          const store = useGameStore.getState();
+          store.addStrategy('A100');
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 15000 },
+            flags: { ...store.flags, stratA100Flag: true },
+          });
+          store.addMessage('Strategy unlocked: A100');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project61',
+        title: 'New Strategy: B100',
+        priceTag: '(17,500 ops)',
+        description: 'Unlocks the B100 strategy for tournaments',
+        trigger: () => get().completedProjects.includes('project60'),
+        cost: () => useGameStore.getState().computing.operations >= 17500,
+        effect: () => {
+          const store = useGameStore.getState();
+          store.addStrategy('B100');
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 17500 },
+            flags: { ...store.flags, stratB100Flag: true },
+          });
+          store.addMessage('Strategy unlocked: B100');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project62',
+        title: 'New Strategy: GREEDY',
+        priceTag: '(20,000 ops)',
+        description: 'Unlocks the GREEDY strategy for tournaments',
+        trigger: () => get().completedProjects.includes('project61'),
+        cost: () => useGameStore.getState().computing.operations >= 20000,
+        effect: () => {
+          const store = useGameStore.getState();
+          store.addStrategy('GREEDY');
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 20000 },
+            flags: { ...store.flags, stratGreedyFlag: true },
+          });
+          store.addMessage('Strategy unlocked: GREEDY');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project63',
+        title: 'New Strategy: GENEROUS',
+        priceTag: '(22,500 ops)',
+        description: 'Unlocks the GENEROUS strategy for tournaments',
+        trigger: () => get().completedProjects.includes('project62'),
+        cost: () => useGameStore.getState().computing.operations >= 22500,
+        effect: () => {
+          const store = useGameStore.getState();
+          store.addStrategy('GENEROUS');
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 22500 },
+            flags: { ...store.flags, stratGenerousFlag: true },
+          });
+          store.addMessage('Strategy unlocked: GENEROUS');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project65',
+        title: 'New Strategy: TIT FOR TAT',
+        priceTag: '(30,000 ops)',
+        description: 'Unlocks the TIT FOR TAT strategy for tournaments',
+        trigger: () => get().completedProjects.includes('project63'),
+        cost: () => useGameStore.getState().computing.operations >= 30000,
+        effect: () => {
+          const store = useGameStore.getState();
+          store.addStrategy('TIT FOR TAT');
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 30000 },
+            flags: { ...store.flags, stratTitForTatFlag: true },
+          });
+          store.addMessage('Strategy unlocked: TIT FOR TAT');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project66',
+        title: 'New Strategy: BEAT LAST',
+        priceTag: '(32,500 ops)',
+        description: 'Unlocks the BEAT LAST strategy for tournaments',
+        trigger: () => get().completedProjects.includes('project65'),
+        cost: () => useGameStore.getState().computing.operations >= 32500,
+        effect: () => {
+          const store = useGameStore.getState();
+          store.addStrategy('BEAT LAST');
+          useGameStore.setState({
+            computing: { ...store.computing, operations: store.computing.operations - 32500 },
+            flags: { ...store.flags, stratBeatLastFlag: true },
+          });
+          store.addMessage('Strategy unlocked: BEAT LAST');
         },
         flag: false,
         uses: 1,
@@ -533,6 +785,58 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             strategic: { ...store.strategic, autoTourneyFlag: true },
           });
           store.addMessage('AutoTourney enabled');
+        },
+        flag: false,
+        uses: 1,
+      },
+
+      // Market domination
+      {
+        id: 'project37',
+        title: 'Hostile Takeover',
+        priceTag: '($1,000,000)',
+        description: 'Multiply marketing and demand',
+        trigger: () => useGameStore.getState().business.funds >= 1000000,
+        cost: () => useGameStore.getState().business.funds >= 1000000,
+        effect: () => {
+          const store = useGameStore.getState();
+          useGameStore.setState({
+            business: {
+              ...store.business,
+              funds: store.business.funds - 1000000,
+              marketing: store.business.marketing * 5,
+              demandBoost: store.business.demandBoost * 10,
+            },
+          });
+          store.addMessage('Hostile Takeover complete: marketing and demand surge');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project38',
+        title: 'Full Monopoly',
+        priceTag: '($10,000,000, 1,000 yomi)',
+        description: 'Massively amplify demand',
+        trigger: () => {
+          const store = useGameStore.getState();
+          return store.business.funds >= 10000000 && store.strategic.yomi >= 1000;
+        },
+        cost: () => {
+          const store = useGameStore.getState();
+          return store.business.funds >= 10000000 && store.strategic.yomi >= 1000;
+        },
+        effect: () => {
+          const store = useGameStore.getState();
+          useGameStore.setState({
+            business: {
+              ...store.business,
+              funds: store.business.funds - 10000000,
+              demandBoost: store.business.demandBoost * 100,
+            },
+            strategic: { ...store.strategic, yomi: store.strategic.yomi - 1000 },
+          });
+          store.addMessage('Full Monopoly established: demand explosion');
         },
         flag: false,
         uses: 1,
