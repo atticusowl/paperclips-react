@@ -510,9 +510,10 @@ export const useGameStore = create<GameStore>()(
             };
           }
           
-          // Sell clips (human phase, every tick based on demand)
+          // Sell clips (human phase, every 10 ticks = 100ms matching original tick rate)
           // Original: if (Math.random() < (demand/100)) { sellClips(Math.floor(.7 * Math.pow(demand, 1.15))); }
-          if (s.flags.humanFlag && s.business.unsoldClips > 0) {
+          // Note: Original tick rate was 100ms, ours is 10ms, so we do this every 10 ticks
+          if (s.flags.humanFlag && s.business.unsoldClips > 0 && s.ticks % 10 === 0) {
             const sellChance = s.business.demand / 100;
             if (Math.random() < sellChance) {
               // Match original formula exactly
@@ -544,9 +545,11 @@ export const useGameStore = create<GameStore>()(
             }
           }
           
-          // Calculate avgRev and avgSales every 10 ticks (once per second)
+          // Calculate avgRev and avgSales every 100 ticks (once per second)
           // Original: secTimer++; if (secTimer >= 10) { calculateRev(); secTimer = 0; }
-          if (s.flags.humanFlag && s.ticks % 10 === 0) {
+          // Note: Original tick rate was 100ms with secTimer firing at 10 = 1000ms
+          // Our tick rate is 10ms, so we use ticks % 100 for 1000ms
+          if (s.flags.humanFlag && s.ticks % 100 === 0) {
             const currentBiz = newState.business || s.business;
             
             // Original: incomeThen = incomeNow; incomeNow = income;
@@ -657,6 +660,128 @@ export const useGameStore = create<GameStore>()(
           }
           
           return newState;
+        });
+      },
+      
+      // Slow tick - called 10x per second (every 100ms) 
+      // Handles: wire price fluctuation, sales, revenue calculation
+      // Matches original game's slow loop
+      slowTick: () => {
+        set((s) => {
+          const newState: Partial<GameState> = {};
+          
+          // Wire price adjustment (original adjustWirePrice function)
+          // wirePriceTimer increments each slow tick
+          const currentTimer = (s.manufacturing.wirePriceTimer ?? 0) + 1;
+          let currentBasePrice = s.manufacturing.wireBasePrice;
+          let newTimer = currentTimer;
+          
+          // Decay base price if no purchases for 250+ slow ticks and price > 15
+          if (currentTimer > 250 && currentBasePrice > 15) {
+            currentBasePrice = currentBasePrice - (currentBasePrice / 1000);
+            newTimer = 0;
+          }
+          
+          // 1.5% chance each slow tick to update price
+          if (Math.random() < 0.015) {
+            const newPriceCounter = (s.manufacturing.wirePriceCounter ?? 0) + 1;
+            const wireAdjust = 6 * Math.sin(newPriceCounter);
+            newState.manufacturing = {
+              ...s.manufacturing,
+              wireCost: Math.ceil(currentBasePrice + wireAdjust),
+              wireBasePrice: currentBasePrice,
+              wirePriceCounter: newPriceCounter,
+              wirePriceTimer: newTimer,
+            };
+          } else {
+            newState.manufacturing = {
+              ...s.manufacturing,
+              wireBasePrice: currentBasePrice,
+              wirePriceTimer: newTimer,
+            };
+          }
+          
+          // Sales (human phase only)
+          // Original: if (Math.random() < (demand/100)) { sellClips(Math.floor(.7 * Math.pow(demand, 1.15))); }
+          if (s.flags.humanFlag && s.business.unsoldClips > 0) {
+            const sellChance = s.business.demand / 100;
+            if (Math.random() < sellChance) {
+              const potentialSell = Math.floor(0.7 * Math.pow(s.business.demand, 1.15));
+              const currentBiz = newState.business ?? s.business;
+              const unsoldClips = currentBiz.unsoldClips;
+              
+              if (potentialSell > unsoldClips) {
+                // Sell all remaining
+                const transaction = Math.floor(unsoldClips * s.business.margin * 1000) / 1000;
+                newState.business = {
+                  ...currentBiz,
+                  unsoldClips: 0,
+                  clipsSold: (currentBiz.clipsSold ?? s.business.clipsSold) + unsoldClips,
+                  funds: Math.floor(((currentBiz.funds ?? s.business.funds) + transaction) * 100) / 100,
+                  income: (currentBiz.income ?? s.business.income) + transaction,
+                };
+              } else if (potentialSell > 0) {
+                const transaction = Math.floor(potentialSell * s.business.margin * 1000) / 1000;
+                newState.business = {
+                  ...currentBiz,
+                  unsoldClips: unsoldClips - potentialSell,
+                  clipsSold: (currentBiz.clipsSold ?? s.business.clipsSold) + potentialSell,
+                  funds: Math.floor(((currentBiz.funds ?? s.business.funds) + transaction) * 100) / 100,
+                  income: (currentBiz.income ?? s.business.income) + transaction,
+                };
+              }
+            }
+          }
+          
+          // Revenue calculation every 10 slow ticks (once per second)
+          // Track with a counter in business state
+          const secTimer = ((s.business as any).secTimer ?? 0) + 1;
+          if (s.flags.humanFlag && secTimer >= 10) {
+            const currentBiz = newState.business ?? s.business;
+            
+            const incomeThen = (currentBiz as any).lastIncomeReading ?? 0;
+            const incomeNow = currentBiz.income;
+            const incomeLastSecond = Math.round((incomeNow - incomeThen) * 100) / 100;
+            
+            const newTracker = [...(currentBiz.incomeTracker ?? [0]), incomeLastSecond];
+            if (newTracker.length > 10) {
+              newTracker.splice(0, 1);
+            }
+            
+            let sum = 0;
+            for (let i = 0; i < newTracker.length; i++) {
+              sum = Math.round((sum + newTracker[i]) * 100) / 100;
+            }
+            const trueAvgRev = sum / newTracker.length;
+            
+            let chanceOfPurchase = currentBiz.demand / 100;
+            if (chanceOfPurchase > 1) chanceOfPurchase = 1;
+            if (currentBiz.unsoldClips < 1) chanceOfPurchase = 0;
+            
+            let avgSales = chanceOfPurchase * (0.7 * Math.pow(currentBiz.demand, 1.15)) * 10;
+            let avgRev = chanceOfPurchase * (0.7 * Math.pow(currentBiz.demand, 1.15)) * currentBiz.margin * 10;
+            
+            if (currentBiz.demand > currentBiz.unsoldClips) {
+              avgRev = trueAvgRev;
+              avgSales = currentBiz.margin > 0 ? avgRev / currentBiz.margin : 0;
+            }
+            
+            newState.business = {
+              ...currentBiz,
+              incomeTracker: newTracker,
+              lastIncomeReading: incomeNow,
+              avgRev,
+              avgSales,
+              secTimer: 0,
+            } as any;
+          } else if (s.flags.humanFlag) {
+            newState.business = {
+              ...(newState.business ?? s.business),
+              secTimer,
+            } as any;
+          }
+          
+          return newState as GameState;
         });
       },
       
