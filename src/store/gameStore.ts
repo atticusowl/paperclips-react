@@ -74,7 +74,7 @@ const stratTitForTat: Strategy = {
   active: 0,
   currentScore: 0,
   currentPos: 1,
-  pickMove: (payoffGrid, hMovePrev, vMovePrev) => {
+  pickMove: (_payoffGrid, hMovePrev, vMovePrev) => {
     if (stratTitForTat.currentPos === 1) {
       return vMovePrev || 1;
     } else {
@@ -88,7 +88,7 @@ const stratBeatLast: Strategy = {
   active: 0,
   currentScore: 0,
   currentPos: 1,
-  pickMove: (payoffGrid, hMovePrev, vMovePrev) => {
+  pickMove: (_payoffGrid, hMovePrev, vMovePrev) => {
     return whatBeatsLast(stratBeatLast.currentPos, hMovePrev, vMovePrev);
   }
 };
