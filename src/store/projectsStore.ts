@@ -547,6 +547,40 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         flag: false,
         uses: 1,
       },
+      {
+        id: 'project27',
+        title: 'Coherent Extrapolated Volition',
+        priceTag: '(500 creat, 1,000 yomi, 20,000 ops)',
+        description: 'Align human values via CEV (+20 Trust)',
+        trigger: () => {
+          const store = useGameStore.getState();
+          return store.computing.creativity >= 500 && store.strategic.yomi >= 1000;
+        },
+        cost: () => {
+          const store = useGameStore.getState();
+          return (
+            store.computing.operations >= 20000 &&
+            store.computing.creativity >= 500 &&
+            store.strategic.yomi >= 1000
+          );
+        },
+        effect: () => {
+          const store = useGameStore.getState();
+          useGameStore.setState({
+            computing: {
+              ...store.computing,
+              operations: store.computing.operations - 20000,
+              creativity: store.computing.creativity - 500,
+              trust: store.computing.trust + 20,
+            },
+            strategic: { ...store.strategic, yomi: store.strategic.yomi - 1000 },
+            flags: { ...store.flags, cevFlag: true },
+          });
+          store.addMessage('Coherent Extrapolated Volition complete, TRUST INCREASED');
+        },
+        flag: false,
+        uses: 1,
+      },
 
       // Humanity benefit projects (trust for humans)
       {
@@ -624,6 +658,24 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             computing: { ...store.computing, operations: store.computing.operations - 20000, trust: store.computing.trust + 20 },
           });
           store.addMessage('Male Pattern Baldness cured, TRUST INCREASED');
+        },
+        flag: false,
+        uses: 1,
+      },
+      {
+        id: 'project40',
+        title: 'A Token of Goodwill',
+        priceTag: '($500,000)',
+        description: 'A goodwill payment (+5 Trust)',
+        trigger: () => useGameStore.getState().computing.trust >= 40,
+        cost: () => useGameStore.getState().business.funds >= 500000,
+        effect: () => {
+          const store = useGameStore.getState();
+          useGameStore.setState({
+            business: { ...store.business, funds: store.business.funds - 500000 },
+            computing: { ...store.computing, trust: store.computing.trust + 5 },
+          });
+          store.addMessage('A Token of Goodwill delivered, TRUST INCREASED');
         },
         flag: false,
         uses: 1,

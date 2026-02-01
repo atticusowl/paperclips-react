@@ -294,6 +294,7 @@ const initialState: GameState = {
     tothFlag: false,
     hypnoFlag: false,
     hypnoDronesFlag: false,
+    cevFlag: false,
     milestoneFlag: 0,
   },
   

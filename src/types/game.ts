@@ -231,6 +231,7 @@ export interface GameFlags {
   tothFlag: boolean;
   hypnoFlag: boolean;
   hypnoDronesFlag: boolean;
+  cevFlag: boolean;
   milestoneFlag: number; // Tracks which milestones have been shown
 }
 
